@@ -5,6 +5,7 @@ const getSubscriptionUrl = async (ctx, accessToken, shop) => {
           name: "Unlimited"
           returnUrl: "${process.env.HOST}"
           trialDays: 90
+          test: true
           lineItems: [
           {
             plan: {
@@ -25,16 +26,15 @@ const getSubscriptionUrl = async (ctx, accessToken, shop) => {
 	            status
             }
         }
-    }`
-});
+    }`,
+  });
 
   const queryid = JSON.stringify({
-    query:
-    `{
+    query: `{
         shop {
           id
         }
-      }`
+      }`,
   });
 
   const webhookSubscription = JSON.stringify({
@@ -55,7 +55,7 @@ const getSubscriptionUrl = async (ctx, accessToken, shop) => {
           }
         }
       }
-      `
+      `,
   });
 
   const uninstallSubscription = JSON.stringify({
@@ -76,62 +76,85 @@ const getSubscriptionUrl = async (ctx, accessToken, shop) => {
           }
         }
       }
-      `
+      `,
   });
 
-  const response = await fetch(`https://${shop}/admin/api/2022-10/graphql.json`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      "X-Shopify-Access-Token": accessToken,
-    },
-    body: query
-  });
+  const response = await fetch(
+    `https://${shop}/admin/api/2022-10/graphql.json`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken,
+      },
+      body: query,
+    }
+  );
 
-  const responseid = await fetch(`https://${shop}/admin/api/2022-10/graphql.json`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      "X-Shopify-Access-Token": accessToken,
-    },
-    body: queryid
-  });
+  const responseid = await fetch(
+    `https://${shop}/admin/api/2022-10/graphql.json`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken,
+      },
+      body: queryid,
+    }
+  );
 
-  const subscription = await fetch(`https://${shop}/admin/api/2022-10/graphql.json`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      "X-Shopify-Access-Token": accessToken,
-    },
-    body: webhookSubscription
-  });
+  const subscription = await fetch(
+    `https://${shop}/admin/api/2022-10/graphql.json`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken,
+      },
+      body: webhookSubscription,
+    }
+  );
 
-  const appUninstall = await fetch(`https://${shop}/admin/api/2022-10/graphql.json`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      "X-Shopify-Access-Token": accessToken,
-    },
-    body: uninstallSubscription
-  });
+  const appUninstall = await fetch(
+    `https://${shop}/admin/api/2022-10/graphql.json`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken,
+      },
+      body: uninstallSubscription,
+    }
+  );
 
   const responseJson = await response.json();
   const responseId = await responseid.json();
   const uninstallId = await appUninstall.json();
-  const confirmationUrl = responseJson.data.appSubscriptionCreate.confirmationUrl;
+  const confirmationUrl =
+    responseJson.data.appSubscriptionCreate.confirmationUrl;
+  console.log("confirmation URL", confirmationUrl);
   const chargeID = responseJson.data.appSubscriptionCreate.appSubscription.id;
   const status = responseJson.data.appSubscriptionCreate.appSubscription.status;
   const subscriptionId = await subscription.json();
-  if(subscriptionId.data.webhookSubscriptionCreate.webhookSubscription && uninstallId.data.webhookSubscriptionCreate.webhookSubscription) {console.log("Webhooks register success");}
+  if (
+    subscriptionId.data.webhookSubscriptionCreate.webhookSubscription &&
+    uninstallId.data.webhookSubscriptionCreate.webhookSubscription
+  ) {
+    console.log("Webhooks register success");
+  }
 
-  const config = require('../config/httpConfig.js');
+  const config = require("../config/httpConfig.js");
   const id = config.ExtractId(responseId.data.shop.id);
 
-  const db = require('../database.js');
-  db.query('INSERT INTO scripts(id) VALUES(?)', id, function(result,fields){
-      db.query('UPDATE scripts SET status=(?), create_date=(?), confirm=(?) WHERE id=(?)',[status,new Date(),chargeID,id], function(result,fields){
-        console.log('Insert success');
-      });
+  const db = require("../database.js");
+  db.query("INSERT INTO scripts(id) VALUES(?)", id, function (result, fields) {
+    db.query(
+      "UPDATE scripts SET status=(?), create_date=(?), confirm=(?) WHERE id=(?)",
+      [status, new Date(), chargeID, id],
+      function (result, fields) {
+        console.log("Insert success");
+      }
+    );
   });
   return ctx.redirect(confirmationUrl);
 };
